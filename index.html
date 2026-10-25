@@ -224,8 +224,8 @@ ${d.s} · 由元宝搜索 API 检索`;
 async function run(){
   const code=document.getElementById('code').value.trim();
   const key=document.getElementById('key').value.trim();
-  const btn=document.getElementById('runBtn');
-
+  const btn=document.querySelector('button[onclick="run()"]');
+  
   if(!code){toast("先贴一段代码");return;}
   if(!key){
     toast("未填 Key，已展示内置验真卡 ↓");
@@ -233,15 +233,13 @@ async function run(){
     return;
   }
 
-  // 防重复点击
   btn.disabled=true;
   btn.textContent="验真中…";
   toast("正在通过中转调用元宝搜索…");
-
+  
   let live=document.getElementById('liveResult');
   if(live) live.remove();
 
-  // 15秒超时
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
 
@@ -252,35 +250,28 @@ async function run(){
       body:JSON.stringify({code, apiKey:key}),
       signal:controller.signal
     });
-    clearTimeout(timer);
 
     const j=await r.json().catch(()=>null);
-
-    // 非 200 的情况
-    if(!r.ok){
-      let errMsg="";
-      if(r.status===401||r.status===403){
-        errMsg="Key 无效或已过期（请检查腾讯云控制台）";
-      }else if(r.status===501){
-        errMsg="Worker 或上游服务暂不支持该请求，请确认 Worker 已 Deploy";
-      }else if(r.status===405){
-        errMsg="请求方法被拒，请确认 Worker 已更新并 Deploy";
-      }else if(j && j.error){
-        errMsg=j.error;
-      }else{
-        errMsg="HTTP "+r.status;
-      }
+    if(!r.ok || !j){
+      let errMsg="请求失败";
+      if(r.status===401 || r.status===403) errMsg="Key 无效或无权限";
+      else if(r.status===501) errMsg="Worker 未更新，请确认已 Deploy";
+      else if(r.status===405) errMsg="请求方法被拒，请确认 Worker 已更新";
+      else if(j && j.error) errMsg=j.error;
+      else errMsg="HTTP "+r.status;
       throw new Error(errMsg);
     }
 
-    if(!j){
-      throw new Error("返回数据解析失败，请重试");
-    }
+    // 核心修复：解析 Pages（腾讯云返回的是 JSON 字符串数组）
+    let pages=j?.Response?.Pages || [];
+    pages = pages.map(p => {
+      if(typeof p === 'string'){
+        try { return JSON.parse(p); } catch { return null; }
+      }
+      return p;
+    }).filter(Boolean);
 
-    const pages=j?.Response?.Pages || [];
-    if(!pages.length){
-      throw new Error("元宝返回为空。可能原因：① Key 无权限 ② 代码太短无结果 ③ 服务未开通");
-    }
+    if(!pages.length) throw new Error("元宝返回为空。请检查 Key 权限或代码是否有效");
 
     const box=document.getElementById('cards');
     live=document.createElement('div');
@@ -309,29 +300,17 @@ async function run(){
     const box=document.getElementById('cards');
     live=document.createElement('div');
     live.id='liveResult';
-
-    let hint="";
-    if(e.name==='AbortError'){
-      hint="请求超时（15秒），请检查网络或稍后重试";
-    }else if(e.message.includes('fetch')){
-      hint="网络异常，请检查是否能访问 Cloudflare";
-    }else{
-      hint=e.message;
-    }
-
+    let hint=e.name==='AbortError'?"请求超时（15秒）":e.message;
     live.innerHTML=`
     <div class="card red">
      <div class="chead"><div class="light"></div><div>
       <div class="ctitle">⚠️ 中转调用失败</div>
       <div class="verdict">回落到内置验真卡</div></div></div>
      <div class="body" style="font-size:12px">${hint}</div>
-     <div class="hint" style="margin-top:8px;font-size:11px;color:var(--dim)">排查清单：① Worker 是否点过 Deploy ② Key 是否以 sk- 开头且在有效期 ③ 腾讯云账号是否欠费 ④ 浏览器是否拦截了跨域请求</div>
     </div>`;
     box.parentNode.insertBefore(live,box);
-    document.getElementById('cards').scrollIntoView({behavior:'smooth'});
-
   }finally{
-    // 恢复按钮
+    clearTimeout(timer);
     btn.disabled=false;
     btn.textContent="开始验真";
   }
