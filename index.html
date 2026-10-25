@@ -15,8 +15,6 @@ body{background:var(--bg);color:var(--txt);font-family:var(--mono);line-height:1
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
  background:repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 3px)}
 .wrap{max-width:680px;margin:0 auto;padding:0 16px}
-
-/* HEADER */
 header{padding:28px 0 18px;border-bottom:1px solid var(--line);margin-bottom:20px}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--cyan);
  border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.08);
@@ -28,8 +26,6 @@ h1 .accent{color:var(--cyan)}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1;min-width:100px}
 .stat b{display:block;font-size:18px;color:var(--cyan)}
 .stat span{font-size:10px;color:var(--dim)}
-
-/* INPUT */
 section{margin-bottom:22px}
 h2{font-size:13px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 h2::before{content:"";width:6px;height:6px;background:var(--cyan);border-radius:1px}
@@ -44,8 +40,6 @@ button{background:var(--cyan);color:#06202a;border:0;border-radius:10px;padding:
  font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 button:active{opacity:.8}
 button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
-
-/* CARD */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
 .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
 .card.red::before{background:var(--red)}
@@ -73,13 +67,10 @@ pre .add{color:#4ade80}
 .score{margin-left:auto;color:var(--cyan);font-weight:700}
 .tools{display:flex;gap:8px;margin-top:12px}
 .tools button{font-size:11px;padding:7px 12px;background:transparent;color:var(--dim);border:1px solid var(--line);font-weight:400}
-
-/* DEMO NAV */
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
 .chip{flex-shrink:0;background:var(--panel);border:1px solid var(--line);color:var(--dim);
  padding:8px 14px;border-radius:99px;font-size:12px;cursor:pointer}
 .chip.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08)}
-
 .note{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:12px;font-size:11px;color:#d3c09a}
 footer{text-align:center;color:var(--dim);font-size:11px;padding:24px 0;border-top:1px solid var(--line);margin-top:20px}
 footer b{color:var(--cyan)}
@@ -138,7 +129,7 @@ footer b{color:var(--cyan)}
 <div class="toast" id="toast"></div>
 
 <script>
-const DEFAULT_RELAY = "https://cd-relay.z17832688.workers.dev";
+const DEFAULT_RELAY = "https://cd-relay.z17832688.workers.dev/"; // ← Worker地址
 
 const DATA=[
  {
@@ -238,20 +229,17 @@ async function run(){
     return;
   }
 
-  const relay=DEFAULT_RELAY;
-  const target="https://api.wsa.cloud.tencent.com/SearchPro";
   toast("正在通过中转调用元宝搜索…");
 
   try{
-    const r=await fetch(relay+"?u="+encodeURIComponent(target),{
+    const r=await fetch(DEFAULT_RELAY,{
       method:"POST",
       headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+key
+        "Content-Type":"application/json"
       },
       body:JSON.stringify({
-        Query: code.slice(0,300)+" 官方文档 API 是否存在 是否已弃用",
-        Cnt:10
+        code: code,
+        apiKey: key
       })
     });
 
