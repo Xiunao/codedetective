@@ -24,9 +24,7 @@ async function run(){
     const r=await fetch(DEFAULT_RELAY,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({code, apiKey:key}),
-      signal:controller.signal
-    });
+      body:JSON.stringify({code: code.length > 500 ? code.slice(0,500)+"...(已截断)" : code, apiKey:key})
 
     const j=await r.json().catch(()=>null);
     if(!r.ok || !j){
