@@ -37,8 +37,9 @@ textarea:focus{border-color:rgba(34,211,238,.5)}
 input[type=text]{flex:1;min-width:160px;background:var(--panel);border:1px solid var(--line);
  border-radius:10px;padding:11px 12px;color:var(--txt);font-family:var(--mono);font-size:12px;outline:none}
 button{background:var(--cyan);color:#06202a;border:0;border-radius:10px;padding:12px 20px;
- font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+ font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
 button:active{opacity:.8}
+button:disabled{opacity:.5;cursor:not-allowed}
 button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
 .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
@@ -98,7 +99,7 @@ footer b{color:var(--cyan)}
   <textarea id="code" placeholder="把 AI 生成的代码贴进来，例如：&#10;&#10;import ReactDOM from 'react-dom';&#10;ReactDOM.render(<App/>, document.getElementById('root'));">import ReactDOM from 'react-dom'; ReactDOM.render(<App />, document.getElementById('root'));</textarea>
   <div class="row">
     <input type="text" id="key" placeholder="元宝搜索 API Key（选填，留空则使用内置案例）">
-    <button onclick="run()">开始验真</button>
+    <button onclick="run()" id="runBtn">开始验真</button>
   </div>
   <div class="hint">不填 Key 也能用：直接看下方 3 张已查证的真实卡片。填 Key 后走 Cloudflare 中转真实调用。</div>
  </section>
@@ -219,10 +220,12 @@ ${d.s} · 由元宝搜索 API 检索`;
  navigator.clipboard?.writeText(txt).then(()=>toast("验真卡已复制"),()=>toast("复制失败"));
 }
 
-// 真正的验真：POST 到你的 Worker，Worker 再拿评委的 key 去问元宝
+// ============ 改进后的 run() ============
 async function run(){
   const code=document.getElementById('code').value.trim();
   const key=document.getElementById('key').value.trim();
+  const btn=document.getElementById('runBtn');
+
   if(!code){toast("先贴一段代码");return;}
   if(!key){
     toast("未填 Key，已展示内置验真卡 ↓");
@@ -230,24 +233,54 @@ async function run(){
     return;
   }
 
+  // 防重复点击
+  btn.disabled=true;
+  btn.textContent="验真中…";
   toast("正在通过中转调用元宝搜索…");
+
   let live=document.getElementById('liveResult');
   if(live) live.remove();
+
+  // 15秒超时
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),15000);
 
   try{
     const r=await fetch(DEFAULT_RELAY,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({code, apiKey:key})
+      body:JSON.stringify({code, apiKey:key}),
+      signal:controller.signal
     });
+    clearTimeout(timer);
 
     const j=await r.json().catch(()=>null);
-    if(!r.ok || !j){
-      const msg = (j && j.error) ? j.error : ("HTTP "+r.status);
-      throw new Error(msg);
+
+    // 非 200 的情况
+    if(!r.ok){
+      let errMsg="";
+      if(r.status===401||r.status===403){
+        errMsg="Key 无效或已过期（请检查腾讯云控制台）";
+      }else if(r.status===501){
+        errMsg="Worker 或上游服务暂不支持该请求，请确认 Worker 已 Deploy";
+      }else if(r.status===405){
+        errMsg="请求方法被拒，请确认 Worker 已更新并 Deploy";
+      }else if(j && j.error){
+        errMsg=j.error;
+      }else{
+        errMsg="HTTP "+r.status;
+      }
+      throw new Error(errMsg);
     }
+
+    if(!j){
+      throw new Error("返回数据解析失败，请重试");
+    }
+
     const pages=j?.Response?.Pages || [];
-    if(!pages.length) throw new Error("元宝返回为空，请检查 Key 是否有效");
+    if(!pages.length){
+      throw new Error("元宝返回为空。可能原因：① Key 无权限 ② 代码太短无结果 ③ 服务未开通");
+    }
 
     const box=document.getElementById('cards');
     live=document.createElement('div');
@@ -270,22 +303,40 @@ async function run(){
     box.parentNode.insertBefore(live,box);
     toast("✅ 实时检索成功，共 "+pages.length+" 条来源");
     live.scrollIntoView({behavior:'smooth'});
+
   }catch(e){
+    clearTimeout(timer);
     const box=document.getElementById('cards');
     live=document.createElement('div');
     live.id='liveResult';
+
+    let hint="";
+    if(e.name==='AbortError'){
+      hint="请求超时（15秒），请检查网络或稍后重试";
+    }else if(e.message.includes('fetch')){
+      hint="网络异常，请检查是否能访问 Cloudflare";
+    }else{
+      hint=e.message;
+    }
+
     live.innerHTML=`
     <div class="card red">
      <div class="chead"><div class="light"></div><div>
       <div class="ctitle">⚠️ 中转调用失败</div>
       <div class="verdict">回落到内置验真卡</div></div></div>
-     <div class="body" style="font-size:12px">${e.message}</div>
-     <div class="hint" style="margin-top:8px">常见原因：① Worker 没点 Deploy；② Key 不是 sk- 开头或已失效；③ 网络拦截。下方是内置查证卡，可照常演示。</div>
+     <div class="body" style="font-size:12px">${hint}</div>
+     <div class="hint" style="margin-top:8px;font-size:11px;color:var(--dim)">排查清单：① Worker 是否点过 Deploy ② Key 是否以 sk- 开头且在有效期 ③ 腾讯云账号是否欠费 ④ 浏览器是否拦截了跨域请求</div>
     </div>`;
     box.parentNode.insertBefore(live,box);
     document.getElementById('cards').scrollIntoView({behavior:'smooth'});
+
+  }finally{
+    // 恢复按钮
+    btn.disabled=false;
+    btn.textContent="开始验真";
   }
 }
+// ============ run() 结束 ============
 
 render();
 </script>
