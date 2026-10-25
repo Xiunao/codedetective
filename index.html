@@ -108,7 +108,7 @@ transition:.25s;z-index:200;opacity:0}
   <textarea id="code" placeholder="把 AI 生成的代码贴进来，例如：&#10;&#10;import ReactDOM from 'react-dom';&#10;ReactDOM.render(<App/>, document.getElementById('root'));">import ReactDOM from 'react-dom';
 ReactDOM.render(<App />, document.getElementById('root'));</textarea>
   <div class="row">
-    <input type="text" id="key" placeholder="元宝搜索 API Key（选填，留则用内置案例）">
+    <input type="text" id="key" placeholder="元宝搜索 API Key（选填，留空则使用内置案例）">
     <button onclick="run()">开始验真</button>
   </div>
   <div class="hint">不填 Key 也能用：直接看下方 3 张已查证的真实卡片。填 Key 后走 Cloudflare 中转真实调用。</div>
@@ -119,7 +119,7 @@ ReactDOM.render(<App />, document.getElementById('root'));</textarea>
   <div class="chips">
     <div class="chip on" onclick="pick(0,this)">React 19 · render 已移除</div>
     <div class="chip" onclick="pick(1,this)">Tailwind v4 · 配置文件已废弃</div>
-    <div class="chip" onclick="pick(2)">npm · AI 编造的包名</div>
+    <div class="chip" onclick="pick(2,this)">npm · AI 编造的包名</div>
   </div>
   <div id="cards"></div>
 </section>
@@ -127,7 +127,7 @@ ReactDOM.render(<App />, document.getElementById('root'));</textarea>
 <section>
   <h2>3 · 关于真实调用</h2>
   <div class="note">
-    <b>评委自测说明：</b>在上方输入框填入你的元宝搜索 API Key（腾讯云控制台创建），粘贴任意 AI 生成代码，点击「开始验真」。请求通过 Cloudflare Worker 中转（Key 不暴露给第三方），真实调用元宝 SearchPro 接口，返回带官方来源的实时检索卡片。未填 Key 时自动展示下方 3 张预置验真卡，来源链接均可点开核对。
+    <b>评委自测说明：</b>在上方输入框填入你的元宝搜索 API Key（腾讯云控制台创建），粘贴任意 AI 生成代码，点击「开始验真」。请求通过 Cloudflare Worker 中转（Key 不暴露给前端直接请求），真实调用元宝 SearchPro 接口，返回带官方来源的实时检索卡片。未填 Key 时自动展示下方 3 张预置验真卡，来源链接均可点开核对。
   </div>
 </section>
 
@@ -140,7 +140,7 @@ ReactDOM.render(<App />, document.getElementById('root'));</textarea>
 <div class="toast" id="toast"></div>
 
 <script>
-const DEFAULT_RELAY = "https://1515643304-80ppcygwnt.ap-guangzhou.tencentscf.com/";
+const DEFAULT_RELAY = "https://cd-relay.z17832688.workers.dev";
 
 const DATA=[
 {
@@ -203,16 +203,33 @@ function render(){
   </div>
  </div>`;
 }
-function pick(i,el){cur=i;render();
- document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
- if(el)el.classList.add('on');else document.querySelectorAll('.chip')[i].classList.add('on');}
+function pick(i,el){
+  cur=i;
+  render();
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
+}
 
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
- setTimeout(()=>t.classList.remove('on'),1800);}
+function toast(m){
+ const t=document.getElementById('toast');
+ t.textContent=m;
+ t.classList.add('on');
+ setTimeout(()=>t.classList.remove('on'),1800);
+}
 
 function copyCard(){
  const d=DATA[cur];
- const txt=`【CodeDetective 验真卡】\n${d.t}\n判定：${d.v}\n\n${d.body.replace(/<[^>]+>/g,'')}\n\n来源：\n${d.srcs.map(s=>s[0]+"\n"+s[1]).join("\n")}\n\n${d.s} · 由元宝搜索 API 检索`;
+ const txt=`【CodeDetective 验真卡】
+${d.t}
+判定：${d.v}
+
+${d.body.replace(/<[^>]+>/g,'')}
+
+来源：
+${d.srcs.map(s=>`- ${s[0]}
+  ${s[1]}`).join("\n")}
+
+${d.s} · 由元宝搜索 API 检索`;
  navigator.clipboard?.writeText(txt).then(()=>toast("验真卡已复制"),()=>toast("复制失败"));
 }
 
@@ -222,7 +239,8 @@ async function run(){
  if(!code){toast("先贴一段代码");return;}
  if(!key){
   toast("未填 Key，已展示内置验真卡 ↓");
-  document.getElementById('cards').scrollIntoView({behavior:'smooth'});return;
+  document.getElementById('cards').scrollIntoView({behavior:'smooth'});
+  return;
  }
 
  const relay=DEFAULT_RELAY;
@@ -234,7 +252,7 @@ async function run(){
    method:"POST",
    headers:{
     "Content-Type":"application/json",
-    "Authorization":"Bearer "+key
+    "Authorization":"Key "+key
    },
    body:JSON.stringify({
     Query:code.slice(0,300)+" 官方文档 API 是否存在 是否已弃用",
@@ -244,19 +262,19 @@ async function run(){
    })
   });
 
-  if(!r.ok)throw new Error("HTTP "+r.status);
+  if(!r.ok) throw new Error("HTTP "+r.status);
   const j=await r.json();
 
-  // 兼容多种返回结构
   const raw=j?.Response?.Pages||j?.Pages||[];
-  const pages=raw.map(p=>{try{return typeof p==="string"?JSON.parse(p):p;}catch(e){return null;}}).filter(Boolean);
+  const pages=raw.map(p=>{
+    try{return typeof p==="string"?JSON.parse(p):p;}catch(e){return null;}
+  }).filter(Boolean);
 
-  if(!pages.length)throw new Error("返回为空");
+  if(!pages.length) throw new Error("返回为空");
 
-  // 渲染实时结果（插在内置卡片上方）
   const box=document.getElementById('cards');
   let live=document.getElementById('liveResult');
-  if(live)live.remove();
+  if(live) live.remove();
   live=document.createElement('div');
   live.id='liveResult';
   live.innerHTML=`
@@ -270,7 +288,7 @@ async function run(){
     <div class="label">来源（可点开核对）</div>
     ${pages.slice(0,5).map(p=>`
      <a class="src" href="${p.url||'#'}" target="_blank" rel="noopener">↗ ${p.title||p.url||'(无标题)'}</a>
-     <div class="body" style="font-size:12px;margin-bottom:8px">${p.passage||p.content||''}</div>
+     <div class="body" style="font-size:12px;margin-bottom:8px">${(p.passage||p.content||'').slice(0,350)}</div>
     `).join('')}
     <div class="meta"><span>元宝搜索 API</span><span>SearchPro</span><span class="score">${pages.length} 条来源</span></div>
    </div>`;
@@ -280,7 +298,7 @@ async function run(){
   live.scrollIntoView({behavior:'smooth'});
 
  }catch(e){
-  toast("中转调用失败："+e.message+"，已回落内置卡片");
+  toast("中转调用失败："+e.message+"，回落内置卡片");
   document.getElementById('cards').scrollIntoView({behavior:'smooth'});
  }
 }
