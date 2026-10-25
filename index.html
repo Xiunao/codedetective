@@ -111,7 +111,7 @@ ReactDOM.render(<App />, document.getElementById('root'));</textarea>
     <input type="text" id="key" placeholder="元宝搜索 API Key（选填，留则用内置案例）">
     <button onclick="run()">开始验真</button>
   </div>
-  <div class="hint">不填 Key 也能用：直接看下方 3 张已查证的真实卡片。</div>
+  <div class="hint">不填 Key 也能用：直接看下方 3 张已查证的真实卡片。填 Key 后走 Cloudflare 中转真实调用。</div>
 </section>
 
 <section>
@@ -127,7 +127,7 @@ ReactDOM.render(<App />, document.getElementById('root'));</textarea>
 <section>
   <h2>3 · 关于真实调用</h2>
   <div class="note">
-    浏览器直连 API 可能受跨域限制。若「开始验真」报网络错误，属正常：<b>内置 3 张卡片的结果本身就是用元宝搜索 API 检索官方文档后生成的</b>，来源链接均可点开核对。评审只需看卡片即可完成核验。
+    <b>评委自测说明：</b>在上方输入框填入你的元宝搜索 API Key（腾讯云控制台创建），粘贴任意 AI 生成代码，点击「开始验真」。请求通过 Cloudflare Worker 中转（Key 不暴露给第三方），真实调用元宝 SearchPro 接口，返回带官方来源的实时检索卡片。未填 Key 时自动展示下方 3 张预置验真卡，来源链接均可点开核对。
   </div>
 </section>
 
@@ -140,6 +140,8 @@ ReactDOM.render(<App />, document.getElementById('root'));</textarea>
 <div class="toast" id="toast"></div>
 
 <script>
+const DEFAULT_RELAY = "https://cd-relay.z17832688.workers.dev";
+
 const DATA=[
 {
  t:"React 19 移除了 ReactDOM.render",
@@ -218,21 +220,67 @@ async function run(){
  const code=document.getElementById('code').value.trim();
  const key=document.getElementById('key').value.trim();
  if(!code){toast("先贴一段代码");return;}
- if(!key){toast("未填 Key，已展示内置验真卡 ↓");
-  document.getElementById('cards').scrollIntoView({behavior:'smooth'});return;}
- toast("正在调用元宝搜索…");
+ if(!key){
+  toast("未填 Key，已展示内置验真卡 ↓");
+  document.getElementById('cards').scrollIntoView({behavior:'smooth'});return;
+ }
+
+ const relay=DEFAULT_RELAY;
+ const target="https://api.wsa.cloud.tencent.com/SearchPro";
+ toast("正在通过中转调用元宝搜索…");
+
  try{
-  const r=await fetch("https://api.wsa.cloud.tencent.com/SearchPro",{
+  const r=await fetch(relay+"?u="+encodeURIComponent(target),{
    method:"POST",
-   headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-   body:JSON.stringify({Query:code.slice(0,200)+" 官方文档 API 是否存在",Cnt:5})
+   headers:{
+    "Content-Type":"application/json",
+    "Authorization":"Bearer "+key
+   },
+   body:JSON.stringify({
+    Query:code.slice(0,300)+" 官方文档 API 是否存在 是否已弃用",
+    Mode:2,
+    Cnt:5,
+    Freshness:"m6"
+   })
   });
-  if(!r.ok)throw new Error(r.status);
+
+  if(!r.ok)throw new Error("HTTP "+r.status);
   const j=await r.json();
-  toast("检索成功，共 "+((j.Pages||j.Results||[]).length)+" 条来源");
-  alert("检索成功 ✅\n\n"+JSON.stringify(j,null,2).slice(0,600));
+
+  // 兼容多种返回结构
+  const raw=j?.Response?.Pages||j?.Pages||[];
+  const pages=raw.map(p=>{try{return typeof p==="string"?JSON.parse(p):p;}catch(e){return null;}}).filter(Boolean);
+
+  if(!pages.length)throw new Error("返回为空");
+
+  // 渲染实时结果（插在内置卡片上方）
+  const box=document.getElementById('cards');
+  let live=document.getElementById('liveResult');
+  if(live)live.remove();
+  live=document.createElement('div');
+  live.id='liveResult';
+  live.innerHTML=`
+   <div class="card green" style="border-color:rgba(34,197,94,.5)">
+    <div class="chead"><div class="light"></div><div>
+     <div class="ctitle">🔎 实时检索结果（元宝 SearchPro · 经 Cloudflare 中转）</div>
+     <div class="verdict">真实调用成功</div>
+    </div></div>
+    <div class="label">检索式</div>
+    <div class="body" style="font-size:12px">"${code.slice(0,80)}…"</div>
+    <div class="label">来源（可点开核对）</div>
+    ${pages.slice(0,5).map(p=>`
+     <a class="src" href="${p.url||'#'}" target="_blank" rel="noopener">↗ ${p.title||p.url||'(无标题)'}</a>
+     <div class="body" style="font-size:12px;margin-bottom:8px">${p.passage||p.content||''}</div>
+    `).join('')}
+    <div class="meta"><span>元宝搜索 API</span><span>SearchPro</span><span class="score">${pages.length} 条来源</span></div>
+   </div>`;
+
+  box.parentNode.insertBefore(live,box);
+  toast("✅ 实时检索成功，共 "+pages.length+" 条来源");
+  live.scrollIntoView({behavior:'smooth'});
+
  }catch(e){
-  toast("直连受跨域限制，已回落内置卡片");
+  toast("中转调用失败："+e.message+"，已回落内置卡片");
   document.getElementById('cards').scrollIntoView({behavior:'smooth'});
  }
 }
