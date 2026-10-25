@@ -306,10 +306,23 @@ async function run(){
      <div class="label">检索式</div>
      <div class="body" style="font-size:12px">"${code.slice(0,80).replace(/"/g,'')}…"</div>
      <div class="label">检索来源</div>
-     ${pages.slice(0,5).map(p=>`
-      <div class="src">🌐 ${p.site || '未知站点'}${p.url?' · <a href="${p.url}" target="_blank" rel="noopener" style="color:#22d3ee">打开原文</a>':''}</div>
-      <div class="body" style="font-size:12px;margin-bottom:8px">${(p.passage||'').slice(0,350)}</div>
-     `).join('')}
+     ${pages.slice(0,5).map(p=>{
+  // 把相对路径拼成完整网址：有 site 就用 site，没有就走备胎
+  let fullUrl='';
+  if(p.url){
+    const u=String(p.url).trim();
+    fullUrl = u.startsWith('http')
+      ? u
+      : (u.startsWith('/')
+          ? (p.site ? (p.site.startsWith('http') ? p.site.replace(/\/$/,'')+u : 'https://'+p.site.replace(/\/$/,'')+u) : '')
+          : (p.site ? (p.site.startsWith('http')?p.site:'https://'+p.site)+'/'+u : ''));
+  }
+  const siteName = p.site || (fullUrl ? (()=>{try{return new URL(fullUrl).hostname}catch(e){return ''}})() : '') || '未知站点';
+  return `
+  <div class="src">🌐 ${siteName}${fullUrl?` · <a href="${fullUrl}" target="_blank" rel="noopener noreferrer" style="color:#22d3ee">打开原文 ↗</a>`:''}</div>
+  <div class="body" style="font-size:12px;margin-bottom:8px">${(p.passage||'').slice(0,350)}</div>`;
+}).join('')}
+
      <div class="meta"><span>元宝搜索 API</span><span>SearchPro</span><span class="score">${pages.length} 条来源</span></div>
     </div>`;
     box.parentNode.insertBefore(live,box);
