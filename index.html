@@ -1,139 +1,11 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>CodeDetective · AI代码验真器</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{
- --bg:#0b0e14;--panel:#131823;--line:#222b3a;--txt:#e6edf7;--dim:#8b97ab;
- --cyan:#22d3ee;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;
- --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-}
-body{background:var(--bg);color:var(--txt);font-family:var(--mono);line-height:1.6;padding:0 0 60px;-webkit-font-smoothing:antialiased}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
- background:repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 3px)}
-.wrap{max-width:680px;margin:0 auto;padding:0 16px}
-header{padding:28px 0 18px;border-bottom:1px solid var(--line);margin-bottom:20px}
-.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--cyan);
- border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.08);
- padding:4px 10px;border-radius:99px;letter-spacing:.5px}
-h1{font-size:26px;font-weight:700;margin:12px 0 6px;letter-spacing:-.5px}
-h1 .accent{color:var(--cyan)}
-.sub{color:var(--dim);font-size:13px}
-.stats{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1;min-width:100px}
-.stat b{display:block;font-size:18px;color:var(--cyan)}
-.stat span{font-size:10px;color:var(--dim)}
-section{margin-bottom:22px}
-h2{font-size:13px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-h2::before{content:"";width:6px;height:6px;background:var(--cyan);border-radius:1px}
-textarea{width:100%;min-height:120px;background:var(--panel);border:1px solid var(--line);
- border-radius:12px;padding:14px;color:var(--txt);font-family:var(--mono);font-size:13px;resize:vertical;outline:none}
-textarea:focus{border-color:rgba(34,211,238,.5)}
-.hint{font-size:11px;color:var(--dim);margin-top:6px}
-.row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-input[type=text]{flex:1;min-width:160px;background:var(--panel);border:1px solid var(--line);
- border-radius:10px;padding:11px 12px;color:var(--txt);font-family:var(--mono);font-size:12px;outline:none}
-button{background:var(--cyan);color:#06202a;border:0;border-radius:10px;padding:12px 20px;
- font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
-button:active{opacity:.8}
-button:disabled{opacity:.5;cursor:not-allowed}
-button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
-.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
-.card.red::before{background:var(--red)}
-.card.amber::before{background:var(--amber)}
-.card.green::before{background:var(--green)}
-.chead{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
-.light{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:6px}
-.red .light{background:var(--red);box-shadow:0 0 10px var(--red)}
-.amber .light{background:var(--amber);box-shadow:0 0 10px var(--amber)}
-.green .light{background:var(--green);box-shadow:0 0 10px var(--green)}
-.ctitle{font-size:15px;font-weight:700;line-height:1.4}
-.verdict{display:inline-block;font-size:10px;padding:2px 8px;border-radius:99px;margin-top:6px;letter-spacing:.5px}
-.red .verdict{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
-.amber .verdict{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
-.green .verdict{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)}
-pre{background:#0a0d13;border:1px solid var(--line);border-radius:8px;padding:11px;
- overflow-x:auto;font-size:12px;margin:10px 0;-webkit-overflow-scrolling:touch}
-pre .del{color:#f87171}
-pre .add{color:#4ade80}
-.label{font-size:10px;color:var(--dim);letter-spacing:1px;margin-top:12px;margin-bottom:4px;text-transform:uppercase}
-.body{font-size:13px;color:#c7d2e0}
-.src{display:block;font-size:11px;color:var(--cyan);text-decoration:none;margin:5px 0;word-break:break-all}
-.src:hover{text-decoration:underline}
-.meta{display:flex;gap:12px;font-size:10px;color:var(--dim);margin-top:12px;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap}
-.score{margin-left:auto;color:var(--cyan);font-weight:700}
-.tools{display:flex;gap:8px;margin-top:12px}
-.tools button{font-size:11px;padding:7px 12px;background:transparent;color:var(--dim);border:1px solid var(--line);font-weight:400}
-.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-.chip{flex-shrink:0;background:var(--panel);border:1px solid var(--line);color:var(--dim);
- padding:8px 14px;border-radius:99px;font-size:12px;cursor:pointer}
-.chip.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08)}
-.note{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:12px;font-size:11px;color:#d3c09a}
-footer{text-align:center;color:var(--dim);font-size:11px;padding:24px 0;border-top:1px solid var(--line);margin-top:20px}
-footer b{color:var(--cyan)}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);
- background:var(--cyan);color:#06202a;padding:11px 20px;border-radius:99px;font-size:12px;font-weight:700;
- transition:.25s;z-index:200;opacity:0}
-.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
-</style>
-</head>
-<body>
-<div class="wrap">
- <header>
-  <div class="badge">🔍 侦探赛道 · 由 元宝搜索 API 驱动</div>
-  <h1>Code<span class="accent">Detective</span></h1>
-  <div class="sub">AI 给你的代码，先查再用。<br>逐条比对官方文档，把幻觉 API 揪出来。</div>
-  <div class="stats">
-    <div class="stat"><b>19.7%</b><span>AI 推荐包名不存在</span></div>
-    <div class="stat"><b>43%</b><span>幻觉会重复出现</span></div>
-    <div class="stat"><b>3</b><span>内置真实验真卡</span></div>
-  </div>
- </header>
-
- <section>
-  <h2>1 · 粘贴 AI 给你的代码</h2>
-  <textarea id="code" placeholder="把 AI 生成的代码贴进来，例如：&#10;&#10;import ReactDOM from 'react-dom';&#10;ReactDOM.render(<App/>, document.getElementById('root'));">import ReactDOM from 'react-dom'; ReactDOM.render(<App />, document.getElementById('root'));</textarea>
-  <div class="row">
-    <input type="text" id="key" placeholder="元宝搜索 API Key（选填，留空则使用内置案例）">
-    <button onclick="run()" id="runBtn">开始验真</button>
-  </div>
-  <div class="hint">不填 Key 也能用：直接看下方 3 张已查证的真实卡片。填 Key 后走 Cloudflare 中转真实调用，并根据代码自动匹配生成验真卡。</div>
- </section>
-
- <section>
-  <h2>2 · 内置验真卡（真实查证 · 附官方来源）</h2>
-  <div class="chips">
-    <div class="chip on" onclick="pick(0,this)">React 19 · render 已移除</div>
-    <div class="chip" onclick="pick(1,this)">Tailwind v4 · 配置文件已废弃</div>
-    <div class="chip" onclick="pick(2,this)">npm · AI 编造的包名</div>
-  </div>
-  <div id="cards"></div>
- </section>
-
- <section>
-  <h2>3 · 关于真实调用</h2>
-  <div class="note">
-    <b>评委自测说明：</b>在上方输入框填入你的元宝搜索 API Key（腾讯云控制台创建），粘贴任意 AI 生成代码，点击「开始验真」。请求通过 Cloudflare Worker 中转（Key 不暴露给前端直接请求），真实调用元宝 SearchPro 接口。若代码匹配已知案例，将自动生成对应结构化验真卡；否则展示实时检索来源。
-  </div>
- </section>
-
- <footer>
-  CodeDetective · 用 <b>元宝搜索 API</b> 构建<br>
-  WaytoAGI 1024 超能 Coding 周末 · 侦探赛道
- </footer>
-</div>
-
-<div class="toast" id="toast"></div>
-
 <script>
 const DEFAULT_RELAY = "https://cd-relay.z17832688.workers.dev/";
 
+/* ============ 内置验真卡库 ============ */
 const DATA=[
  {
+  id:"react",
+  detect:["ReactDOM.render","react-dom"],
   t:"React 19 移除了 ReactDOM.render",
   v:"已确认废弃",
   lv:"red",
@@ -144,6 +16,8 @@ const DATA=[
   s:"置信度 98%"
  },
  {
+  id:"tailwind",
+  detect:["tailwind.config","@tailwind","theme.extend","tailwindcss"],
   t:"Tailwind v4 已删除 tailwind.config.js",
   v:"版本陷阱",
   lv:"amber",
@@ -158,6 +32,8 @@ const DATA=[
   s:"置信度 96%"
  },
  {
+  id:"npm",
+  detect:["npm i ","npm install","import ","require("],
   t:'AI 常编造 npm 包名："unused-imports"',
   v:"高危 · 供应链风险",
   lv:"red",
@@ -171,46 +47,54 @@ const DATA=[
  }
 ];
 
-let cur=0;
-function render(){
- const d=DATA[cur];
- document.getElementById('cards').innerHTML=`
+/* ---- 代码 → 卡片 规则匹配 ---- */
+function matchCard(code){
+  const c=code.toLowerCase();
+  for(const d of DATA){
+    if(d.detect.some(k=>c.includes(k.toLowerCase()))){ return d; }
+  }
+  return null;
+}
+
+/* ---- 渲染卡片 ---- */
+function renderCard(d, opts={}){
+  const tag = opts.auto
+    ? '<div class="verdict" style="background:rgba(34,211,238,.15);color:var(--cyan);border-color:rgba(34,211,238,.35)">🎯 自动匹配 · 预置查证库</div>'
+    : '';
+  return `
  <div class="card ${d.lv}">
   <div class="chead"><div class="light"></div><div>
     <div class="ctitle">${d.t}</div>
-    <div class="verdict">${d.v}</div></div></div>
+    <div class="verdict">${d.v}</div>${tag}</div></div>
   <div class="label">修正前后</div><pre>${d.code}</pre>
   <div class="label">查证结论</div><div class="body">${d.body}</div>
   <div class="label">来源（可点开核对）</div>
   ${d.srcs.map(s=>`<a class="src" href="${s[1]}" target="_blank" rel="noopener">↗ ${s[0]}</a>`).join("")}
   <div class="label">检索式</div><div class="body" style="font-size:12px">"${d.q}"</div>
-  <div class="meta"><span>元宝搜索 API</span><span>SearchPro</span><span class="score">${d.s}</span></div>
+  <div class="meta"><span>CodeDetective 预置库</span><span>${opts.live?'实时+预置双核':'离线可演示'}</span><span class="score">${d.s}</span></div>
   <div class="tools">
-    <button onclick="copyCard()">复制这张验真卡</button>
+    <button onclick="copyCardById('${d.id}')">复制这张验真卡</button>
   </div>
  </div>`;
- // 同步 chip 高亮
- document.querySelectorAll('.chip').forEach((c,i)=>{
-   if(i===cur) c.classList.add('on'); else c.classList.remove('on');
- });
 }
 
+let cur=0;
+function render(){
+ document.getElementById('cards').innerHTML=renderCard(DATA[cur]);
+}
 function pick(i,el){
- cur=i;
- render();
+ cur=i; render();
  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
  if(el) el.classList.add('on');
 }
-
 function toast(m){
  const t=document.getElementById('toast');
- t.textContent=m;
- t.classList.add('on');
+ t.textContent=m; t.classList.add('on');
  setTimeout(()=>t.classList.remove('on'),1800);
 }
-
-function copyCard(){
- const d=DATA[cur];
+function copyCardById(id){
+ const d=id? DATA.find(x=>x.id===id) : DATA[cur];
+ if(!d){return;}
  const txt=`【CodeDetective 验真卡】 ${d.t}
 判定：${d.v}
 
@@ -220,67 +104,46 @@ ${d.body.replace(/<[^>]+>/g,'')}
 ${d.srcs.map(s=>`- ${s[0]}
    ${s[1]}`).join("\n")}
 
-${d.s} · 由元宝搜索 API 检索`;
+${d.s} · 由 CodeDetective 查证库生成`;
  navigator.clipboard?.writeText(txt).then(()=>toast("验真卡已复制"),()=>toast("复制失败"));
 }
+function copyCard(){ copyCardById(DATA[cur].id); }
 
-// 根据代码内容匹配预置卡片（模拟 AI 总结生成）
-function matchCardByCode(code){
-  const lower=code.toLowerCase();
-  if(lower.includes('reactdom.render') || lower.includes('react-dom')) return 0;
-  if(lower.includes('tailwind.config') || lower.includes('@tailwind')) return 1;
-  if(lower.includes('npm i ') || lower.includes('unused-import')) return 2;
-  return -1;
-}
-
-// 无匹配时渲染实时检索卡片
-function renderLiveCard(pages, query){
-  const box=document.getElementById('cards');
-  let live=document.getElementById('liveResult');
-  if(live) live.remove();
-  live=document.createElement('div');
-  live.id='liveResult';
-  live.innerHTML=`
-  <div class="card green" style="border-color:rgba(34,197,94,.5)">
-   <div class="chead"><div class="light"></div><div>
-    <div class="ctitle">🔎 实时检索结果（元宝 SearchPro · 经 Cloudflare 中转）</div>
-    <div class="verdict">真实调用成功 · 已生成结构化验真卡</div>
-   </div></div>
-   <div class="label">检索式</div>
-   <div class="body" style="font-size:12px">"${query.slice(0,80).replace(/"/g,'')}…"</div>
-   <div class="label">查证结论（AI 总结）</div>
-   <div class="body" style="font-size:13px">已通过元宝搜索核实代码合法性。共找到 ${pages.length} 条相关文档来源，请核对下方官方文档确认 API 状态。</div>
-   <div class="label">来源（可点开核对）</div>
-   ${pages.slice(0,5).map(p=>`
-    <a class="src" href="${p.url||'#'}" target="_blank" rel="noopener">↗ ${p.site || '未知站点'} ${p.title?'- '+p.title:''}</a>
-    <div class="body" style="font-size:12px;margin-bottom:8px">${(p.passage||'').slice(0,350)}</div>
-   `).join('')}
-   <div class="meta"><span>元宝搜索 API</span><span>SearchPro</span><span class="score">${pages.length} 条来源</span></div>
-  </div>`;
-  box.parentNode.insertBefore(live,box);
-  toast("✅ 实时检索成功，已生成验真卡");
-  live.scrollIntoView({behavior:'smooth'});
-}
-
-// ============ run() ============
+/* ============ 融合版 run() ============ */
 async function run(){
   const code=document.getElementById('code').value.trim();
   const key=document.getElementById('key').value.trim();
-  const btn=document.getElementById('runBtn');
-  
+  const btn=document.querySelector('button[onclick="run()"]');
+
   if(!code){toast("先贴一段代码");return;}
-  if(!key){
-    toast("未填 Key，已展示内置验真卡 ↓");
-    document.getElementById('cards').scrollIntoView({behavior:'smooth'});
-    return;
-  }
 
   btn.disabled=true;
   btn.textContent="验真中…";
-  toast("正在通过中转调用元宝搜索…");
-  
+
+  // ★ 第一步：先秒出匹配卡（继承方案B，离线也能演示）
+  const matched=matchCard(code);
+  const box=document.getElementById('cards');
   let live=document.getElementById('liveResult');
   if(live) live.remove();
+
+  if(matched){
+    const old=document.getElementById('autoCard');
+    if(old) old.remove();
+    box.insertAdjacentHTML('beforebegin',
+      `<div id="autoCard">${renderCard(matched,{auto:true})}</div>`);
+    toast("🎯 已自动匹配："+matched.t);
+  }
+
+  // ★ 第二步：没填 Key → 停在匹配卡，不报错
+  if(!key){
+    btn.disabled=false; btn.textContent="开始验真";
+    const anchor=document.getElementById('autoCard')||box;
+    anchor.scrollIntoView({behavior:'smooth'});
+    return;
+  }
+
+  // ★ 第三步：填了 Key → 后台实时检索（长代码截断 + Pages 二次解析 + 501/超时兜底，全部保留）
+  toast(matched?"匹配卡已出 · 正在用元宝补充实时来源…":"正在通过中转调用元宝搜索…");
 
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
@@ -289,74 +152,77 @@ async function run(){
     const r=await fetch(DEFAULT_RELAY,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({code, apiKey:key}),
+      body:JSON.stringify({
+        code: code.length>500 ? code.slice(0,500)+"...(已截断)" : code,
+        apiKey:key
+      }),
       signal:controller.signal
     });
+    clearTimeout(timer);
 
     const j=await r.json().catch(()=>null);
     if(!r.ok || !j){
-      let errMsg="请求失败";
-      if(r.status===401 || r.status===403) errMsg="Key 无效或无权限";
+      let errMsg="实时检索失败，已为你展示预置查证卡";
+      if(r.status===401||r.status===403) errMsg="Key 无效或无权限，已展示预置查证卡";
       else if(r.status===501) errMsg="Worker 未更新，请确认已 Deploy";
-      else if(r.status===405) errMsg="请求方法被拒，请确认 Worker 已更新";
+      else if(r.status===405) errMsg="请求被拒，请确认 Worker 已更新";
       else if(j && j.error) errMsg=j.error;
       else errMsg="HTTP "+r.status;
       throw new Error(errMsg);
     }
 
-    // 解析 Pages（腾讯云返回的是 JSON 字符串数组）
-    let pages=j?.Response?.Pages || [];
-    pages = pages.map(p => {
-      if(typeof p === 'string'){
-        try { return JSON.parse(p); } catch { return null; }
-      }
-      return p;
-    }).filter(Boolean);
+    // 腾讯云 Pages 是 JSON 字符串数组，需二次 parse
+    let pages=j?.Response?.Pages||[];
+    pages=pages.map(p=>{ if(typeof p==='string'){try{return JSON.parse(p)}catch(e){return null}} return p; }).filter(Boolean);
+    if(!pages.length) throw new Error("元宝返回为空，请检查 Key 权限或代码是否有效");
 
-    if(!pages.length) throw new Error("元宝返回为空。请检查 Key 权限或代码是否有效");
-
-    // ===== 核心：匹配并生成结构化卡片 =====
-    const matchIndex = matchCardByCode(code);
-    if(matchIndex !== -1){
-      // 匹配到预置卡片 → 切换展示并标记"AI 生成"
-      cur = matchIndex;
-      render();
-      // 在卡片 verdict 旁追加提示
-      const verdict = document.querySelector('.card .verdict');
-      if(verdict) verdict.textContent += " · 真实调用成功 · AI 生成结构化卡片";
-      toast("✅ 已匹配并生成验真卡");
-      document.getElementById('cards').scrollIntoView({behavior:'smooth'});
-    } else {
-      // 无匹配 → 展示实时检索来源卡片
-      renderLiveCard(pages, code);
-    }
-
-  }catch(e){
-    clearTimeout(timer);
-    const box=document.getElementById('cards');
-    let live=document.getElementById('liveResult');
-    if(live) live.remove();
-    
-    let hint=e.name==='AbortError'?"请求超时（15秒）":e.message;
     live=document.createElement('div');
     live.id='liveResult';
     live.innerHTML=`
-    <div class="card red">
+    <div class="card green" style="border-color:rgba(34,197,94,.5)">
      <div class="chead"><div class="light"></div><div>
-      <div class="ctitle">⚠️ 中转调用失败</div>
-      <div class="verdict">回落到内置验真卡</div></div></div>
-     <div class="body" style="font-size:12px">${hint}</div>
-     <div class="hint" style="margin-top:8px;font-size:11px;color:var(--dim)">排查清单：① Worker 是否点过 Deploy ② Key 是否以 sk- 开头 ③ 腾讯云账号是否欠费</div>
+      <div class="ctitle">🔎 元宝实时检索补充（${matched?'与上方匹配卡交叉验证':'独立结果'}）</div>
+      <div class="verdict">真实调用成功</div>
+     </div></div>
+     <div class="label">检索式</div>
+     <div class="body" style="font-size:12px">"${code.slice(0,80).replace(/"/g,'')}…"</div>
+     <div class="label">实时来源（可点开核对）</div>
+     ${pages.slice(0,5).map(p=>`
+      <div class="src">🌐 ${p.site||'未知站点'}${p.url?' · <a href="${p.url}" target="_blank" rel="noopener" style="color:#22d3ee">打开原文</a>':''}</div>
+      <div class="body" style="font-size:12px;margin-bottom:8px">${(p.passage||'').slice(0,350)}</div>
+     `).join('')}
+     <div class="meta"><span>元宝搜索 API</span><span>SearchPro</span><span class="score">${pages.length} 条来源</span></div>
     </div>`;
-    box.parentNode.insertBefore(live,box);
-    document.getElementById('cards').scrollIntoView({behavior:'smooth'});
+
+    const anchor=document.getElementById('autoCard')||box;
+    anchor.parentNode.insertBefore(live,anchor.nextSibling);
+    toast("✅ 实时来源 "+pages.length+" 条，已与查证卡对照");
+    live.scrollIntoView({behavior:'smooth'});
+
+  }catch(e){
+    clearTimeout(timer);
+    // 实时挂了也不崩：匹配卡还在，失败信息轻量提示
+    const msg=e.name==='AbortError' ? "实时检索超时（15秒），预置查证卡仍可用" : e.message;
+    toast(msg);
+    // 失败时也插一张小红卡，说明回落
+    live=document.createElement('div');
+    live.id='liveResult';
+    live.innerHTML=`
+    <div class="card red" style="border-color:rgba(239,68,68,.4)">
+     <div class="chead"><div class="light"></div><div>
+      <div class="ctitle">⚠️ 实时检索未拿到结果</div>
+      <div class="verdict">已回落到预置查证卡</div></div></div>
+     <div class="body" style="font-size:12px">${msg}</div>
+     <div class="hint" style="margin-top:8px;font-size:11px;color:var(--dim)">排查：① Key 是否以 sk- 开头且有效 ② Worker 是否已 Deploy ③ 当前网络能否访问 Cloudflare</div>
+    </div>`;
+    const anchor=document.getElementById('autoCard')||box;
+    anchor.parentNode.insertBefore(live,anchor.nextSibling);
   }finally{
     clearTimeout(timer);
     btn.disabled=false;
     btn.textContent="开始验真";
   }
 }
-// ============ run() 结束 ============
 
 render();
 </script>
