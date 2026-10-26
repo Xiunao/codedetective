@@ -117,7 +117,7 @@ footer b{color:var(--cyan)}
  <section>
   <h2>3 · 关于真实调用</h2>
   <div class="note">
-    <b>评委自测说明：</b>在上方输入框填入你的元宝搜索 API Key（腾讯云控制台创建），粘贴任意 AI 生成代码，点击「开始验真」。请求通过 Cloudflare Worker 中转（Key 不暴露给前端直接请求），真实调用元宝 SearchPro 接口，返回带官方来源的实时检索卡片。未填 Key 时自动展示下方 3 张预置验真卡，来源链接均可点开核对。
+    <b>评委自测说明：</b>连接特殊网络，在上方输入框填入你的元宝搜索 API Key（腾讯云控制台创建），粘贴任意 AI 生成代码，点击「开始验真」。请求通过 Cloudflare Worker 中转（Key 不暴露给前端直接请求），真实调用元宝 SearchPro 接口，返回带官方来源的实时检索卡片。未填 Key 时自动展示下方 3 张预置验真卡，来源链接均可点开核对。
   </div>
  </section>
 
@@ -350,7 +350,7 @@ async function run(){
       <div class="ctitle">⚠️ 中转调用失败</div>
       <div class="verdict">回落到内置验真卡</div></div></div>
      <div class="body" style="font-size:12px">${hint}</div>
-     <div class="hint" style="margin-top:8px;font-size:11px;color:var(--dim)">排查清单：① Worker 是否点过 Deploy ② Key 是否以 sk- 开头且在有效期 ③ 腾讯云账号是否欠费 ④ 浏览器是否拦截了跨域请求</div>
+     <div class="hint" style="margin-top:8px;font-size:11px;color:var(--dim)">排查清单：① Worker 是否点过 Deploy ② Key 是否以 sk- 开头且在有效期 ③ 腾讯云账号是否欠费 ④ 未连接特殊网络，拦截了跨域请求</div>
     </div>`;
     box.parentNode.insertBefore(live,box);
     document.getElementById('cards').scrollIntoView({behavior:'smooth'});
