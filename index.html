@@ -241,9 +241,9 @@ async function run(){
   let live=document.getElementById('liveResult');
   if(live) live.remove();
 
-  // 15秒超时
+  // 30秒超时
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),15000);
+  const timer=setTimeout(()=>controller.abort(),30000);
 
   try{
     const r=await fetch(DEFAULT_RELAY,{
